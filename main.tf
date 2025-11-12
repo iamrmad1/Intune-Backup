@@ -1,17 +1,16 @@
+// Fetch pilot group ID if user provided a display name
+data "microsoft365wp_groups" "pilot" {
+  count        = var.pilot_group_display_name != "" ? 1 : 0
+  display_name = var.pilot_group_display_name
+}
+
 module "win10_compliance_policy" {
   source = "./modules/compliance-policies/windows10"
 
   display_name = var.policy_name
-  description  = "Windows 10 compliance baseline via quickstart module"
+  description  = "Windows 10 compliance baseline - pilot"
 
-  password_required               = true
-  password_minimum_length         = 8
-  password_required_type          = "alphanumeric"
-  password_expiration_days        = 90
-  password_minutes_of_inactivity  = 15
-  password_previous_password_block_count = 5
-  os_minimum_version              = "10.0.19045.0"
-
+  # Minimal required scheduled actions structure (adjust as needed)
   scheduled_actions_for_rule = [
     {
       rule_name = "PasswordRequired"
@@ -24,5 +23,6 @@ module "win10_compliance_policy" {
     }
   ]
 
-  assignments = [data.microsoft365wp_groups.pilot.id]
+  # If pilot group exists, pass the ID, otherwise empty list
+  assignments = length(data.microsoft365wp_groups.pilot) > 0 ? [data.microsoft365wp_groups.pilot[0].id] : []
 }
