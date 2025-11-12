@@ -1,4 +1,4 @@
-// Create a Windows 10 compliance policy
+// Create a Windows 11 compliance policy
 resource "microsoft365wp_device_compliance_policy" "win10" {
   display_name = var.policy_name
   platform     = "windows10AndLater"
