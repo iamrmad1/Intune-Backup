@@ -16,12 +16,12 @@ variable "client_secret" {
 
 variable "policy_name" {
   type        = string
+  description = "Display name for the Windows 10 compliance policy"
   default     = "Windows 10 Compliance Policy"
-  description = "Display name"
 }
 
 variable "pilot_group_display_name" {
   type        = string
-  default     = "Intune - Windows - Pilot"
-  description = "Existing Entra ID group to assign policy to"
+  description = "Existing Entra ID group display name to assign the policy to (optional)"
+  default     = ""
 }
