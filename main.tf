@@ -1,16 +1,35 @@
-// Create a Windows 11 compliance policy
 resource "microsoft365wp_device_compliance_policy" "win10" {
   display_name = var.policy_name
-  platform     = "windows10AndLater"
+  description  = "Windows 10 compliance baseline"
 
-  // Example compliance settings
-  password_required                = true
-  password_minimum_length           = 8
-  password_required_type            = "alphanumeric"
-  password_expiration_days          = 90
-  password_minutes_of_inactivity    = 15
-  password_previous_password_block_count = 5
+  // Required block: scheduled actions
+  scheduled_actions_for_rule {
+    rule_name = "PasswordRequired"
 
-  os_minimum_version = "10.0.19045.0" // Example: require Windows 10 22H2
-  os_maximum_version = "10.0.99999.0" // Optional upper bound
+    scheduled_action_configurations {
+      action_type = "block"
+      grace_period_hours = 0
+    }
+  }
+
+  // Platform-specific settings go inside settings blocks
+  settings {
+    setting_name  = "passwordRequired"
+    setting_value = "true"
+  }
+
+  settings {
+    setting_name  = "passwordMinimumLength"
+    setting_value = "8"
+  }
+
+  settings {
+    setting_name  = "passwordRequiredType"
+    setting_value = "alphanumeric"
+  }
+
+  settings {
+    setting_name  = "osMinimumVersion"
+    setting_value = "10.0.19045.0"
+  }
 }
