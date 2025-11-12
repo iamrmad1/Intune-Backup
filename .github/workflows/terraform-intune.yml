@@ -1,43 +1,124 @@
-# .github/workflows/terraform-intune.yml
-name: Terraform Intune Deploy
+name: Terraform
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ "main" ]
-    paths:
-      - "**/*.tf"
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:        # manual trigger (used to run the apply job)
+    inputs:
+      action:
+        description: 'plan or apply'
+        required: true
+        default: 'plan'
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_WORKING_DIR: '.'      # change if your Terraform root is in a subfolder
+  TF_BACKEND_CONFIG: ''    # optional extra backend config string, keep empty if not used
 
 jobs:
-  deploy:
+  terraform-plan:
+    name: Terraform Plan
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.action == 'plan'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.7.5
+          terraform_version: '1.7.7'    # pin a suitable version
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            ${{ github.workspace }}/.terraform
+          key: ${{ runner.os }}-tf-${{ hashFiles('**/*.tf*') }}
+          restore-keys: |
+            ${{ runner.os }}-tf-
+
+      - name: Configure Terraform environment variables
+        run: |
+          echo "TF_IN_AUTOMATION=1" >> $GITHUB_ENV
+          echo "TF_INPUT=0" >> $GITHUB_ENV
+          # Expose provider credentials via TF_VAR_ variables so Terraform variables pick them up
+          echo "TF_VAR_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
 
       - name: Terraform Init
-        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate
+
+      - name: Terraform Format Check
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform fmt -check
 
       - name: Terraform Plan
-        env:
-          TF_VAR_tenant_id: ${{ secrets.TENANT_ID }}
-          TF_VAR_client_id: ${{ secrets.CLIENT_ID }}
-          TF_VAR_client_secret: ${{ secrets.CLIENT_SECRET }}
-        run: terraform plan -out plan.tfplan
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform plan -out=plan.tfplan
+          terraform show -no-color -json plan.tfplan > plan.json
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: |
+            ${{ env.TF_WORKING_DIR }}/plan.tfplan
+            ${{ env.TF_WORKING_DIR }}/plan.json
+
+  terraform-apply:
+    name: Terraform Apply (manual)
+    runs-on: ubuntu-latest
+    needs: [terraform-plan]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.7.7'
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            ${{ github.workspace }}/.terraform
+          key: ${{ runner.os }}-tf-${{ hashFiles('**/*.tf*') }}
+          restore-keys: |
+            ${{ runner.os }}-tf-
+
+      - name: Configure Terraform environment variables
+        run: |
+          echo "TF_IN_AUTOMATION=1" >> $GITHUB_ENV
+          echo "TF_INPUT=0" >> $GITHUB_ENV
+          echo "TF_VAR_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        env:
-          TF_VAR_tenant_id: ${{ secrets.TENANT_ID }}
-          TF_VAR_client_id: ${{ secrets.CLIENT_ID }}
-          TF_VAR_client_secret: ${{ secrets.CLIENT_SECRET }}
-        run: terraform apply -auto-approve plan.tfplan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform apply -auto-approve plan.tfplan
