@@ -1,8 +1,9 @@
 resource "microsoft365wp_device_compliance_policy" "win10" {
   display_name = var.policy_name
   description  = "Windows 10 compliance baseline"
+  platform     = "windows10AndLater"
 
-  // Required argument: scheduled_actions_for_rule
+  // Required: scheduled actions
   scheduled_actions_for_rule = [
     {
       rule_name = "PasswordRequired"
@@ -15,23 +16,8 @@ resource "microsoft365wp_device_compliance_policy" "win10" {
     }
   ]
 
-  // Settings must be passed as a list of maps
-  settings = [
-    {
-      name  = "passwordRequired"
-      value = "true"
-    },
-    {
-      name  = "passwordMinimumLength"
-      value = "8"
-    },
-    {
-      name  = "passwordRequiredType"
-      value = "alphanumeric"
-    },
-    {
-      name  = "osMinimumVersion"
-      value = "10.0.19045.0"
-    }
-  ]
+  // Example supported arguments
+  password_required       = true
+  password_minimum_length = 8
+  os_minimum_version      = "10.0.19045.0"
 }
