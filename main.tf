@@ -1,16 +1,9 @@
-// Fetch existing pilot group id
-data "microsoft365wp_groups" "pilot" {
-  display_name = var.pilot_group_display_name
-}
-
-// Use the quickstart compliance policy module (Windows 10)
 module "win10_compliance_policy" {
-  source = "github.com/terraprovider/terraform-provider-microsoft365wp-quickstart//compliance-policies/windows10?ref=main"
+  source = "./modules/compliance-policies/windows10"
 
   display_name = var.policy_name
   description  = "Windows 10 compliance baseline via quickstart module"
 
-  // Core compliance settings (module variables)
   password_required               = true
   password_minimum_length         = 8
   password_required_type          = "alphanumeric"
@@ -19,7 +12,6 @@ module "win10_compliance_policy" {
   password_previous_password_block_count = 5
   os_minimum_version              = "10.0.19045.0"
 
-  // Enforcement actions when non-compliant
   scheduled_actions_for_rule = [
     {
       rule_name = "PasswordRequired"
@@ -32,6 +24,5 @@ module "win10_compliance_policy" {
     }
   ]
 
-  // Assignments: pass group IDs
   assignments = [data.microsoft365wp_groups.pilot.id]
 }
