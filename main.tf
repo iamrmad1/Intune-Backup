@@ -15,13 +15,23 @@ resource "microsoft365wp_device_compliance_policy" "win10" {
     }
   ]
 
-  // Supported arguments vary by platform; here’s a Windows example
-  password_required              = true
-  password_minimum_length        = 8
-  password_required_type         = "alphanumeric"
-  password_expiration_days       = 90
-  password_minutes_of_inactivity = 15
-  password_previous_password_block_count = 5
-
-  os_minimum_version = "10.0.19045.0"  # Require Windows 10 22H2
+  // Settings must be passed as a list of maps
+  settings = [
+    {
+      name  = "passwordRequired"
+      value = "true"
+    },
+    {
+      name  = "passwordMinimumLength"
+      value = "8"
+    },
+    {
+      name  = "passwordRequiredType"
+      value = "alphanumeric"
+    },
+    {
+      name  = "osMinimumVersion"
+      value = "10.0.19045.0"
+    }
+  ]
 }
