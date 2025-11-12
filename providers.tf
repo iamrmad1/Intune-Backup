@@ -1,4 +1,5 @@
 terraform {
+  required_version = ">= 1.7.0"
   required_providers {
     microsoft365wp = {
       source  = "terraprovider/microsoft365wp"
@@ -6,7 +7,6 @@ terraform {
     }
   }
 }
-
 provider "microsoft365wp" {
   tenant_id     = var.tenant_id
   client_id     = var.client_id
